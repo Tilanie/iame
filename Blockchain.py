@@ -13,11 +13,13 @@ import hashlib
 # Flask is for creating the web
 # app and jsonify is for
 # displaying the blockchain
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 # To store data
 # in our blockchain
 import json
+
+# from requests import request
  
  
 class Blockchain:
@@ -34,6 +36,22 @@ class Blockchain:
     # into the chain
     def create_block(self, proof, previous_hash):
         block = {'index': len(self.chain) + 1,
+                 'first_name': "Tilanie",
+                 'last_name': "Bresler",
+                 'email': "tilanietest@gmail.com",
+                 'address': 'Street, Country, Zip',
+                 'age': '22',
+                 'gender': 'F',
+                 'phone_number': '0122223344',
+                 'dob': '01/01/2000',
+                 'games_owned': {
+                     "Counter Strike": [
+                        {
+                            "id": 1,
+                            "description": "my cool gun"
+                        }
+                    ]
+                 },
                  'timestamp': str(datetime.datetime.now()),
                  'proof': proof,
                  'previous_hash': previous_hash}
@@ -119,6 +137,21 @@ def display_chain():
                 'length': len(blockchain.chain)}
     return jsonify(response), 200
  
+ # Request user credentials
+@app.route('/get_credentials', methods=['POST'])
+def get_credentials():
+   
+    print("The application " + request.json['application_name'] + " is requesting your information. Do you want to grant access?" )
+    print("Enter 'yes' to approve: ")
+    c = input()
+   
+    if(c == 'yes'):
+        response = {'chain': blockchain.chain,
+                'length': len(blockchain.chain)}
+        return jsonify(response), 200
+    else:
+        return "Request not authorized", 401
+
 # Check validity of blockchain
 @app.route('/valid', methods=['GET'])
 def valid():
