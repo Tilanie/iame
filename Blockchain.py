@@ -1,6 +1,7 @@
 # Python program to create Blockchain
  
 # For timestamp
+from asyncio.windows_events import NULL
 import datetime
  
 # Calculating the hash
@@ -19,6 +20,8 @@ from flask import Flask, jsonify, request
 # in our blockchain
 import json
 
+from Encryption import Encryption
+
 # from requests import request
  
  
@@ -28,27 +31,45 @@ class Blockchain:
     # to create the very first
     # block and set its hash to "0"
     def __init__(self):
+        self.encryptor = NULL
         self.chain = []
         self.create_block(proof=1, previous_hash='0')
+        self.encryptor = self.create_encryptor()
  
+    def create_encryptor(self):
+        if(self.encryptor == NULL):
+            self.encryptor = Encryption()
+        return self.encryptor
     # This function is created
     # to add further blocks
     # into the chain
     def create_block(self, proof, previous_hash):
+        self.encryptor = self.create_encryptor()
+        first_name = self.encryptor.encrypt_message(b"Tilanie")
+        last_name = self.encryptor.encrypt_message(b"Bresler")
+        email = self.encryptor.encrypt_message(b"tilanietest@gmail.com")
+        address = self.encryptor.encrypt_message(b"Street, Country, Zip")
+        age = self.encryptor.encrypt_message(b"22")
+        gender = self.encryptor.encrypt_message(b"F")
+        phone_number = self.encryptor.encrypt_message(b"0122223344")
+        dob = self.encryptor.encrypt_message(b"01/01/2000")
+        games_owned_asset = self.encryptor.encrypt_message(b"my cool gun")
+
+
         block = {'index': len(self.chain) + 1,
-                 'first_name': "Tilanie",
-                 'last_name': "Bresler",
-                 'email': "tilanietest@gmail.com",
-                 'address': 'Street, Country, Zip',
-                 'age': '22',
-                 'gender': 'F',
-                 'phone_number': '0122223344',
-                 'dob': '01/01/2000',
+                 'first_name': first_name,
+                 'last_name': last_name,
+                 'email': email,
+                 'address': address,
+                 'age': age,
+                 'gender': gender,
+                 'phone_number': phone_number,
+                 'dob': dob,
                  'games_owned': {
                      "Counter Strike": [
                         {
                             "id": 1,
-                            "description": "my cool gun"
+                            "description": games_owned_asset
                         }
                     ]
                  },
@@ -103,8 +124,56 @@ class Blockchain:
             block_index += 1
          
         return True
- 
- 
+
+    def decrypt_information(self, incoming_message_object):
+        message_object = incoming_message_object['chain'][0]
+
+        new_message = {'index': len(self.chain) + 1,
+                 "first_name": self.encryptor.decrypt_message(message_object['first_name']),
+                 "last_name": self.encryptor.decrypt_message(message_object['last_name']),
+                 "email": self.encryptor.decrypt_message(message_object['email']),
+                 "address": self.encryptor.decrypt_message(message_object['address']),
+                 "age": self.encryptor.decrypt_message(message_object['age']),
+                 "gender": self.encryptor.decrypt_message(message_object['gender']),
+                 "phone_number": self.encryptor.decrypt_message(message_object['phone_number']),
+                 "dob": self.encryptor.decrypt_message(message_object['dob']),
+                 "games_owned": {
+                     "Counter Strike": [
+                        {
+                            "id": 1,
+                            "description": self.encryptor.decrypt_message(message_object['games_owned']['Counter Strike'][0]['description']),
+                        }
+                    ]
+                 },
+                 "timestamp": str(datetime.datetime.now()),
+                 "proof": message_object['proof'],
+                 "previous_hash": message_object['previous_hash']}
+        return new_message
+    
+    def format_chain(self):
+        message_object = blockchain.chain[0]
+      
+        new_message = {'index': len(self.chain) + 1,
+                 "first_name": str(message_object['first_name']),
+                 "last_name": str(message_object['last_name']),
+                 "email": str(message_object['email']),
+                 "address": str(message_object['address']),
+                 "age": str(message_object['age']),
+                 "gender": str(message_object['gender']),
+                 "phone_number": str(message_object['phone_number']),
+                 "dob": str(message_object['dob']),
+                 "games_owned": {
+                     "Counter Strike": [
+                        {
+                            "id": 1,
+                            "description": str(message_object['games_owned']['Counter Strike'][0]['description']),
+                        }
+                    ]
+                 },
+                 "timestamp": str(datetime.datetime.now()),
+                 "proof": str(message_object['proof']),
+                 "previous_hash": str(message_object['previous_hash'])}
+        return new_message
 # Creating the Web
 # App using flask
 app = Flask(__name__)
@@ -117,22 +186,27 @@ blockchain = Blockchain()
 @app.route('/mine_block', methods=['GET'])
 def mine_block():
     previous_block = blockchain.print_previous_block()
+ 
     previous_proof = previous_block['proof']
+
     proof = blockchain.proof_of_work(previous_proof)
+
     previous_hash = blockchain.hash(previous_block)
+
     block = blockchain.create_block(proof, previous_hash)
-     
+
     response = {'message': 'A block is MINED',
                 'index': block['index'],
                 'timestamp': block['timestamp'],
                 'proof': block['proof'],
                 'previous_hash': block['previous_hash']}
-     
+
     return jsonify(response), 200
  
 # Display blockchain in json format
 @app.route('/get_chain', methods=['GET'])
 def display_chain():
+    blockchain.chain[0] = blockchain.format_chain()
     response = {'chain': blockchain.chain,
                 'length': len(blockchain.chain)}
     return jsonify(response), 200
@@ -142,13 +216,13 @@ def display_chain():
 def get_credentials():
    
     print("The application " + request.json['application_name'] + " is requesting your information. Do you want to grant access?" )
-    print("Enter 'yes' to approve: ")
+    print("Enter 'yes' to approve or 'no' to reject: ")
     c = input()
    
     if(c == 'yes'):
         response = {'chain': blockchain.chain,
                 'length': len(blockchain.chain)}
-        return jsonify(response), 200
+        return jsonify(blockchain.decrypt_information(response)), 200
     else:
         return "Request not authorized", 401
 
