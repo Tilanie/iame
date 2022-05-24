@@ -1,5 +1,9 @@
-# Python program to create Blockchain
- 
+from tkinter import *
+from tkinter import ttk
+#Create an instance of Tkinter frame
+win = Tk()
+#Set the geometry of Tkinter frame
+win.geometry("750x270")
 # For timestamp
 from asyncio.windows_events import NULL
 import datetime
@@ -8,6 +12,9 @@ import datetime
 # in order to add digital
 # fingerprints to the blocks
 import hashlib
+
+import asyncio
+from websockets import connect
  
 
  
@@ -15,7 +22,7 @@ import hashlib
 # app and jsonify is for
 # displaying the blockchain
 from flask import Flask, jsonify, request
-
+from flask_cors import CORS
 # To store data
 # in our blockchain
 import json
@@ -35,6 +42,10 @@ class Blockchain:
         self.chain = []
         self.create_block(proof=1, previous_hash='0')
         self.encryptor = self.create_encryptor()
+        self.current_request = False;
+        self.authenticated = False
+        self.request_seen = False
+
  
     def create_encryptor(self):
         if(self.encryptor == NULL):
@@ -78,7 +89,13 @@ class Blockchain:
                  'previous_hash': previous_hash}
         self.chain.append(block)
         return block
-       
+
+    def handleButton(self):
+        print(self.root)
+        if self.root:
+            self.root.destroy
+    
+
     # This function is created
     # to display the previous block
     def print_previous_block(self):
@@ -99,6 +116,7 @@ class Blockchain:
                 new_proof += 1
                  
         return new_proof
+
  
     def hash(self, block):
         encoded_block = json.dumps(block, sort_keys=True).encode()
@@ -177,7 +195,7 @@ class Blockchain:
 # Creating the Web
 # App using flask
 app = Flask(__name__)
- 
+CORS(app)
 # Create the object
 # of the class blockchain
 blockchain = Blockchain()
@@ -204,6 +222,25 @@ def mine_block():
     return jsonify(response), 200
  
 # Display blockchain in json format
+@app.route('/login_requested', methods=['GET'])
+def login_requested():
+    response = blockchain.current_request
+    return jsonify(response), 200
+
+
+# self.authenticated = False
+#         self.request_seen = False
+@app.route('/login', methods=['POST'])
+def login():
+    authenticated = request.json['authenticate'] 
+    blockchain.request_seen = True
+    blockchain.authenticated = authenticated
+    response = {
+        'request_seen': blockchain.request_seen,
+        'authenticated': blockchain.authenticated
+    }
+    return jsonify(response), 200
+
 @app.route('/get_chain', methods=['GET'])
 def display_chain():
     blockchain.chain[0] = blockchain.format_chain()
@@ -213,16 +250,17 @@ def display_chain():
  
  # Request user credentials
 @app.route('/get_credentials', methods=['POST'])
-def get_credentials():
-   
+async def get_credentials():
+    blockchain.current_request = True
     print("The application " + request.json['application_name'] + " is requesting your information. Do you want to grant access?" )
     print("Enter 'yes' to approve or 'no' to reject: ")
+
     c = input()
-   
     if(c == 'yes'):
         response = {'chain': blockchain.chain,
                 'length': len(blockchain.chain)}
         return jsonify(blockchain.decrypt_information(response)), 200
+        
     else:
         return "Request not authorized", 401
 
